@@ -7,10 +7,10 @@
 #include "time.h"
 
 // 1. TETAPAN AP & FIREBASE
-#define WIFI_SSID       "REDMI"
-#define WIFI_PASSWORD   "123456789"
-#define FIREBASE_SECRET "kh3u2Ss5tgxHDD6Gzs7LIN5oz5talGKsRapO8s4Z"
-#define FIREBASE_HOST   "https://sistem-status-jabatan-default-rtdb.asia-southeast1.firebasedatabase.app"
+#define WIFI_SSID       "YOUR_WIFI_NAME"
+#define WIFI_PASSWORD   "YOUR_WIFI_PASSWORD"
+#define FIREBASE_SECRET "YOUR_FIREBASE_SECRET"
+#define FIREBASE_HOST   "YOUR_FIREBASE_HOST"
 
 // 2. PIN HARDWARE ESP32 & TETAPAN LED INDIVIDU (2 PIN STRIP)
 #define PIN_POWER_LED    2                                  // Pin LED penanda peranti hidup (GPIO 2)

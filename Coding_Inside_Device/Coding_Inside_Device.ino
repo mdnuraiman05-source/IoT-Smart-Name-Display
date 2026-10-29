@@ -1,3 +1,4 @@
+//Inside Device
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>
@@ -10,25 +11,31 @@
 #include <time.h>
 #include "esp_sleep.h"
 
+// ================================================================
 // 1. TETAPAN PERANTI & RANGKAIAN
-#define DEVICE_ID       "meja_01" //Tukar mengikut nama di Firebase
-#define WIFI_SSID       "YOUR_WIFI_NAME"
-#define WIFI_PASSWORD   "YOUR_WIFI_PASSWORD"
-#define FIREBASE_HOST   "YOUR_FIRBASE_HOST"
-#define FIREBASE_SECRET "YOUR_FIREBASE_SECRET"
-#define BOT_TOKEN       "YOUR_BOT_TOKEN"
-#define ALLOWED_CHAT_ID "YOUR_CHAT_ID"
+// ================================================================
+#define DEVICE_ID         "meja_01"//Tukar mengikut nama di Firebase
+#define WIFI_SSID         "REDMI"
+#define WIFI_PASSWORD     "123456789"
+#define FIREBASE_HOST     "https://sistem-status-jabatan-default-rtdb.asia-southeast1.firebasedatabase.app"
+#define FIREBASE_SECRET   "kh3u2Ss5tgxHDD6Gzs7LIN5oz5talGKsRapO8s4Z"
+#define BOT_TOKEN         "8818978519:AAGUP8m8nlytESTe45QebnDGFToQ3RbaIfY"
 
-#define PATH_BASE      "/pensyarah_devices/" DEVICE_ID
-#define PATH_STATUS    PATH_BASE "/status_kehadiran"
-#define PATH_DOORBELL  PATH_BASE "/Doorbell"
-#define PATH_VOLTAN    PATH_BASE "/bateri_voltan"
-#define PATH_PERATUS   PATH_BASE "/bateri_peratus"
+// TETAPAN SISTEM GRUP
+#define ALLOWED_GROUP_ID  "-5103262041"  // Masukkan Chat ID Telegram Group di sini
+#define PENSYARAH_USER_ID "1109077176"   // Telegram User ID Pensyarah pemilik meja_01 sahaja
 
+#define PATH_BASE         "/pensyarah_devices/" DEVICE_ID
+#define PATH_STATUS       PATH_BASE "/status_kehadiran"
+#define PATH_VOLTAN       PATH_BASE "/bateri_voltan"
+#define PATH_PERATUS      PATH_BASE "/bateri_peratus"
+
+// ================================================================
 // 2. HARDWARE
-#define LED_PIN         13
-#define NUM_LEDS        8
-#define LED_BRIGHTNESS  40
+// ================================================================
+#define LED_PIN           13
+#define NUM_LEDS          8
+#define LED_BRIGHTNESS    40
 Adafruit_NeoPixel strip(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 WiFiClientSecure secured_client;
@@ -42,7 +49,6 @@ uint32_t masaTamatCutiEpoch = 0;
 bool modCutiBerpenghujung = false, peringatanCutiDihantar = false, amaranBateriTelahDihantar = false;
 
 unsigned long lastTelegramCheck = 0, telegramInterval = 1000;
-unsigned long lastDoorbellCheck = 0, doorbellInterval = 2000;
 unsigned long lastBatteryCheck = 0;
 const unsigned long BATTERY_CHECK_INTERVAL = 900000;
 
@@ -82,13 +88,13 @@ bool adakahWaktuBekerja() {
 }
 
 void kemaskiniWarnaLED(String status) {
-  if (!adakahWaktuBekerja()) { setWarnaLED(0, 0, 0); return; }
+  // Pematikan LED waktu malam dibuang: LED kekal menyala mengikut status 24 jam
   status.trim(); status.toUpperCase();
-  if (status == "ADA") setWarnaLED(0, 255, 0);                 // Hijau
-  else if (status == "SIBUK" || status == "KELAS") setWarnaLED(255, 0, 0); // Merah
-  else if (status == "PULANG") setWarnaLED(0, 0, 255);         // Biru
-  else if (status == "CUTI") setWarnaLED(255, 255, 0);         // Kuning
-  else setWarnaLED(255, 255, 255);                            // Putih (Default)
+  if (status == "ADA") setWarnaLED(0, 255, 0);                                 // Hijau
+  else if (status == "SIBUK" || status == "KELAS") setWarnaLED(255, 0, 0);     // Merah
+  else if (status == "LUAR KAWASAN/KECEMASAN") setWarnaLED(0, 0, 255);         // Biru
+  else if (status == "CUTI") setWarnaLED(255, 255, 0);                         // Kuning
+  else setWarnaLED(255, 255, 255);                                            // Putih (Default)
 }
 
 bool kemaskiniStatusFirebase(String status) {
@@ -113,7 +119,7 @@ void semakAmaranBateriAutomatik() {
   float v = ina219.getBusVoltage_V();
   int p = kiraPeratusBateri(v);
   if (p <= 20 && !amaranBateriTelahDihantar) {
-    bot.sendMessage(ALLOWED_CHAT_ID, "⚠️ *AMARAN BATERI RENDAH! (" DEVICE_ID ")*\nBateri: *" + String(p) + "%* (" + String(v, 2) + "V). Sila cas peranti.", "Markdown");
+    bot.sendMessage(ALLOWED_GROUP_ID, "⚠️ *AMARAN BATERI RENDAH! (" DEVICE_ID ")*\nBateri: *" + String(p) + "%* (" + String(v, 2) + "V). Sila cas peranti.", "Markdown");
     amaranBateriTelahDihantar = true;
   } else if (p > 25) amaranBateriTelahDihantar = false;
 }
@@ -162,48 +168,64 @@ void semakPemasaCutiRTC() {
   if (!peringatanCutiDihantar && (masaTamatCutiEpoch - now <= 3600) && (masaTamatCutiEpoch > now)) {
     peringatanCutiDihantar = true;
     pref.begin("cuti_app", false); pref.putBool("peringatan", true); pref.end();
-    bot.sendMessage(ALLOWED_CHAT_ID, "⚠️ *PERINGATAN CUTI:* Tempoh cuti anda akan tamat dalam *1 Jam lagi*.", "Markdown");
+    bot.sendMessage(ALLOWED_GROUP_ID, "⚠️️ *PERINGATAN CUTI (" DEVICE_ID "):* Tempoh cuti anda akan tamat dalam *1 Jam lagi*.", "Markdown");
   }
   if (now >= masaTamatCutiEpoch) {
     simpanCutiKeFlash(0, false);
     if (kemaskiniStatusFirebase("ADA")) {
-      bot.sendMessage(ALLOWED_CHAT_ID, "⏰ *TEMPOH CUTI TAMAT!*\nStatus di-reset kepada 🟢 *ADA*.", "Markdown");
+      bot.sendMessage(ALLOWED_GROUP_ID, "⏰ *TEMPOH CUTI TAMAT (" DEVICE_ID ")!*\nStatus di-reset kepada 🟢 *ADA*.", "Markdown");
     }
   }
 }
 
 // ================================================================
-// TELEGRAM & SISTEM
+// TELEGRAM KEYBOARD (BUTANG DENGAN SELESA)
 // ================================================================
-void hantarPapanKunciButang(String chat_id, String msg) {
-  String kb = "[[\"🟢 ADA\", \"🔴 SIBUK\"], [\"🔵 PULANG\", \"🟡 CUTI\"], [\"📊 SEMAK STATUS\"]]";
-  bot.sendMessageWithReplyKeyboard(chat_id, msg, "Markdown", kb, true, false, false);
+void hantarMenuUtama(String chat_id, String mesej) {
+  String keyboardJson = "[[\"🟢 ADA\", \"🔴 SIBUK\"], [\"🔵 LUAR KAWASAN/KECEMASAN\"], [\"🟡 CUTI\", \"📊 SEMAK STATUS\"]]";
+  bot.sendMessageWithReplyKeyboard(chat_id, mesej, "Markdown", keyboardJson, true, false);
 }
 
+// ================================================================
+// TELEGRAM GROUP LOGIC (KAEDAH A: USER ID FILTERING)
+// ================================================================
 void kendalikanMesejTelegram(int numNewMessages) {
   for (int i = 0; i < numNewMessages; i++) {
     String chat_id = String(bot.messages[i].chat_id);
+    String sender_id = String(bot.messages[i].from_id);
     String text = bot.messages[i].text;
-    if (chat_id != ALLOWED_CHAT_ID) { bot.sendMessage(chat_id, "⛔ *AKSES DITOLAK!*", "Markdown"); continue; }
+
+    if (chat_id != ALLOWED_GROUP_ID) {
+      continue;
+    }
+
+    if (sender_id != PENSYARAH_USER_ID) {
+      continue;
+    }
 
     String st = "";
     if (text == "/ada" || text == "🟢 ADA") st = "ADA";
     else if (text == "/sibuk" || text == "/kelas" || text == "🔴 SIBUK") st = "SIBUK";
-    else if (text == "/pulang" || text == "🔵 PULANG") st = "PULANG";
+    else if (text == "/luar kawasan/kecemasan" || text == "🔵 LUAR KAWASAN/KECEMASAN") st = "LUAR KAWASAN/KECEMASAN";
     else if (text == "/cuti" || text == "🟡 CUTI") st = "CUTI";
 
     if (st != "") {
       simpanCutiKeFlash(0, false);
-      if (kemaskiniStatusFirebase(st)) bot.sendMessage(chat_id, "Status dikemas kini: *" + st + "*", "Markdown");
+      if (kemaskiniStatusFirebase(st)) {
+        bot.sendMessage(ALLOWED_GROUP_ID, "✅ *[ " DEVICE_ID " ]* Status dikemas kini: *" + st + "*", "Markdown");
+      }
     }
     else if (text == "/start" || text == "/menu") {
-      hantarPapanKunciButang(chat_id, "Pilih status anda:\n• `/cuti 2` (Set Cuti 2 Hari)\n• `/tambahcuti 1`\n• `/batalcuti`");
+      hantarMenuUtama(ALLOWED_GROUP_ID, "🎛️ *MENU UTAMA (" DEVICE_ID ")*\nSila tekan butang di bawah untuk kemaskini status anda:");
     }
     else if (text == "/batalcuti") {
       if (modCutiBerpenghujung) {
-        simpanCutiKeFlash(0, false); kemaskiniStatusFirebase("ADA");
-        bot.sendMessage(chat_id, "✅ Pemasa cuti *DIBATALKAN*. Status: 🟢 *ADA*.", "Markdown");
-      } else bot.sendMessage(chat_id, "ℹ️ Tiada pemasa cuti aktif.", "Markdown");
+        simpanCutiKeFlash(0, false); 
+        kemaskiniStatusFirebase("ADA");
+        bot.sendMessage(ALLOWED_GROUP_ID, "✅ *[ " DEVICE_ID " ]* Pemasa cuti *DIBATALKAN*. Status: 🟢 *ADA*", "Markdown");
+      } else {
+        bot.sendMessage(ALLOWED_GROUP_ID, "ℹ *[ " DEVICE_ID " ]* Tiada pemasa cuti aktif.", "Markdown");
+      }
     }
     else if (text.startsWith("/tambahcuti ")) {
       int h = text.substring(12).toInt();
@@ -212,8 +234,10 @@ void kendalikanMesejTelegram(int numNewMessages) {
         simpanCutiKeFlash(epochBaru, true);
         DateTime dt(epochBaru);
         char buf[30]; snprintf(buf, sizeof(buf), "%02d/%02d/%04d %02d:%02d", dt.day(), dt.month(), dt.year(), dt.hour(), dt.minute());
-        bot.sendMessage(chat_id, "➕ Cuti ditambah *" + String(h) + " Hari*.\nTarikh Tamat: *" + String(buf) + "*", "Markdown");
-      } else bot.sendMessage(chat_id, "⚠️ Format salah atau tiada cuti aktif.", "Markdown");
+        bot.sendMessage(ALLOWED_GROUP_ID, "➕ *[ " DEVICE_ID " ]* Cuti ditambah *" + String(h) + " Hari*.\nTarikh Tamat: *" + String(buf) + "*", "Markdown");
+      } else {
+        bot.sendMessage(ALLOWED_GROUP_ID, "⚠️ *[ " DEVICE_ID " ]* Format salah atau tiada cuti aktif.", "Markdown");
+      }
     }
     else if (text.startsWith("/cuti ")) {
       int h = text.substring(6).toInt();
@@ -221,8 +245,10 @@ void kendalikanMesejTelegram(int numNewMessages) {
         tetapkanCutiHari(h, true);
         DateTime dt(masaTamatCutiEpoch);
         char buf[30]; snprintf(buf, sizeof(buf), "%02d/%02d/%04d %02d:%02d", dt.day(), dt.month(), dt.year(), dt.hour(), dt.minute());
-        bot.sendMessage(chat_id, "🟡 Status: *CUTI*\n📅 *Durasi:* " + String(h) + " Hari Bekerja\n⏰ *Tamat:* " + String(buf), "Markdown");
-      } else bot.sendMessage(chat_id, "⚠️ Format salah. Contoh: `/cuti 2`", "Markdown");
+        bot.sendMessage(ALLOWED_GROUP_ID, "🟡 *[ " DEVICE_ID " ]* Status: *CUTI*\n📅 *Durasi:* " + String(h) + " Hari Bekerja\n⏰ *Tamat:* " + String(buf), "Markdown");
+      } else {
+        bot.sendMessage(ALLOWED_GROUP_ID, "⚠️ *[ " DEVICE_ID " ]* Format salah. Contoh: `/cuti 2`", "Markdown");
+      }
     }
     else if (text == "/status" || text == "📊 SEMAK STATUS") {
       String info = "📊 *STATUS PERANTI (" DEVICE_ID ")*\n\nStatus: *" + sendFirebaseReq(PATH_STATUS) + "*\n";
@@ -237,12 +263,14 @@ void kendalikanMesejTelegram(int numNewMessages) {
       }
       info += statusINA219 ? "Bateri: " + String(ina219.getBusVoltage_V(), 2) + "V (" + String(kiraPeratusBateri(ina219.getBusVoltage_V())) + "%)\n" : "Bateri: ❌ INA219 Disconnected\n";
       info += "Mod: " + String(adakahWaktuBekerja() ? "☀️ Waktu Bekerja" : "🌙 Luar Waktu Bekerja") + "\nRAM: " + String(ESP.getFreeHeap()) + " B";
-      bot.sendMessage(chat_id, info, "Markdown");
+      bot.sendMessage(ALLOWED_GROUP_ID, info, "Markdown");
     }
-    else hantarPapanKunciButang(chat_id, "Arahan tidak dikenali. Guna butang atau `/cuti 2`.");
   }
 }
 
+// ================================================================
+// SETUP & LOOP
+// ================================================================
 void setup() {
   Serial.begin(115200); Wire.begin(21, 22);
   strip.begin(); strip.setBrightness(LED_BRIGHTNESS); strip.show();
@@ -251,7 +279,6 @@ void setup() {
   while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
   
   secured_client.setInsecure();
-  sendFirebaseReq(PATH_DOORBELL, "PUT", "false");
 
   statusINA219 = ina219.begin();
   if (rtc.begin()) {
@@ -265,6 +292,8 @@ void setup() {
   kemaskiniWarnaLED(sendFirebaseReq(PATH_STATUS));
   kemaskiniBateriKeFirebase();
   semakAmaranBateriAutomatik();
+
+  hantarMenuUtama(ALLOWED_GROUP_ID, "🚀 *Sistem Status Disambungkan (" DEVICE_ID ")*\nGunakan menu di bawah untuk tetapan cepat:");
 }
 
 void loop() {
@@ -279,18 +308,12 @@ void loop() {
 
   // Pelarasan Selang Semakan Berdasarkan Bateri & Waktu Bekerja
   bool waktuKerja = adakahWaktuBekerja();
-  
   if (statusINA219 && kiraPeratusBateri(ina219.getBusVoltage_V()) <= 20) {
-    telegramInterval = 5000; doorbellInterval = 6000;
+    telegramInterval = 5000;
   } else if (!waktuKerja) {
-    telegramInterval = 3000; doorbellInterval = 5000;
+    telegramInterval = 3000;
   } else {
-    telegramInterval = 1000; doorbellInterval = 2000;
-  }
-
-  // Pengurusan Lampu LED berdasarkan waktu bekerja
-  if (!waktuKerja) {
-    setWarnaLED(0, 0, 0); // Matikan LED luar waktu bekerja
+    telegramInterval = 1000;
   }
 
   // 1. Telegram Polling
@@ -304,25 +327,13 @@ void loop() {
   // 2. Semak Cuti RTC
   semakPemasaCutiRTC();
 
-  // 3. Semak Doorbell
-  if (now - lastDoorbellCheck >= doorbellInterval) {
-    if (sendFirebaseReq(PATH_DOORBELL) == "true") {
-      String st = sendFirebaseReq(PATH_STATUS);
-      if (st != "SIBUK" && st != "CUTI") {
-        bot.sendMessage(ALLOWED_CHAT_ID, "🔔 *PANGGILAN PINTU! (" DEVICE_ID ")*\nPelawat menekan butang panggilan.", "Markdown");
-      }
-      sendFirebaseReq(PATH_DOORBELL, "PUT", "false");
-    }
-    lastDoorbellCheck = now;
-  }
-
-  // 4. Semak Bateri Berkala
+  // 3. Semak Bateri Berkala
   if (now - lastBatteryCheck >= BATTERY_CHECK_INTERVAL) {
     kemaskiniBateriKeFirebase(); semakAmaranBateriAutomatik();
     lastBatteryCheck = now;
   }
 
-  // 5. Deep Sleep Sahaja (Apabila Bateri Sangat Critical ≤15%)
+  // 4. Deep Sleep (Guna Pemasa Apabila Bateri Critical ≤15%)
   if (statusINA219 && kiraPeratusBateri(ina219.getBusVoltage_V()) <= 15) {
     setWarnaLED(0, 0, 0);
     esp_sleep_enable_timer_wakeup(30ULL * 60ULL * 1000000ULL);

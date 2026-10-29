@@ -14,16 +14,16 @@
 // ================================================================
 // 1. TETAPAN PERANTI & RANGKAIAN
 // ================================================================
-#define DEVICE_ID         "meja_01"//Tukar mengikut nama di Firebase
-#define WIFI_SSID         "REDMI"
-#define WIFI_PASSWORD     "123456789"
-#define FIREBASE_HOST     "https://sistem-status-jabatan-default-rtdb.asia-southeast1.firebasedatabase.app"
-#define FIREBASE_SECRET   "kh3u2Ss5tgxHDD6Gzs7LIN5oz5talGKsRapO8s4Z"
-#define BOT_TOKEN         "8818978519:AAGUP8m8nlytESTe45QebnDGFToQ3RbaIfY"
+#define DEVICE_ID         "XXXXXXX"//Tukar mengikut nama di Firebase
+#define WIFI_SSID         "YOUR_WIFI_NAME"
+#define WIFI_PASSWORD     "YOUR_WIFI_PASSWORD"
+#define FIREBASE_HOST     "YOUR_FIREBASE_HOST"
+#define FIREBASE_SECRET   "YOUR_FIREBASE_SECRET"
+#define BOT_TOKEN         "YOUR_BOT_TOKEN"
 
 // TETAPAN SISTEM GRUP
-#define ALLOWED_GROUP_ID  "-5103262041"  // Masukkan Chat ID Telegram Group di sini
-#define PENSYARAH_USER_ID "1109077176"   // Telegram User ID Pensyarah pemilik meja_01 sahaja
+#define ALLOWED_GROUP_ID  "YOUR_GROUP_ID"  // Masukkan Chat ID Telegram Group di sini
+#define PENSYARAH_USER_ID "YOUR_USER_ID"   // Telegram User ID Pensyarah pemilik meja_01 sahaja
 
 #define PATH_BASE         "/pensyarah_devices/" DEVICE_ID
 #define PATH_STATUS       PATH_BASE "/status_kehadiran"
